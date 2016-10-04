@@ -1,0 +1,102 @@
+#! /usr/local/bin/python3
+
+###############################################
+#
+#    script: eigenvalue_vasp.py
+#    
+#    Author: Paul Sanders (phs0007@auburn.edu)
+#
+#    Purpose: Find Density of States from Dynamical 
+#             Matrix Given in Vasp
+#
+#    Date: 1. PHS September 30, 2016
+#
+###############################################
+
+import sys
+import numpy
+import scipy.linalg
+import matplotlib.pyplot as plt
+
+def main():
+    length, array = get_array(sys.argv[1])
+    eigenvalues = eigens(array)
+    print(eigenvalues)
+    x = numpy.linspace(0,7,1000)
+    sigma = .1
+    y = rho(x, eigenvalues, sigma, length)
+    plt.plot(x,y)
+    plt.show()
+
+    # If you want to plot...
+    #output = open("fileout.out","w")
+    #for i in eigenvalues:
+    #    output.write(str(i)+"\n")
+    #output.close()
+
+
+
+
+
+
+###############################################
+
+def get_array(file):
+    data = open(file,"r")
+    data = data.readlines()
+    data = [i.split() for i in data]
+    dynam_data = data[1:]
+    print(dynam_data)
+
+    # convert to float/int
+    for i, value in enumerate(dynam_data):
+        if i % 4 == 0:
+            for j, value2 in enumerate(value):
+                dynam_data[i][j] = int(dynam_data[i][j])
+        else:
+            for j, value2 in enumerate(value):
+                dynam_data[i][j] = float(dynam_data[i][j])
+
+    
+    length = int(data[0][0])*3
+    matrix_positions = dynam_data[::4]
+
+    # populate array
+    array = numpy.zeros((length,length))
+    for i, value in enumerate(matrix_positions):      
+        populate_array(value,dynam_data[4*i+1:4*(i+1)],array)
+
+    return length, array
+    
+def populate_array(element, values, array):
+    for i in range(3):
+        for j in range(3):
+            array[(element[0]-1)*3 + i][(element[1]-1)*3 + j] = values[i][j]
+    return True
+
+def eigens(array):
+    eigens = scipy.linalg.eigvalsh(array)
+
+    for i, value in enumerate(eigens):
+        if value < 0:
+             eigens[i] = 0
+    
+    eigens = numpy.sqrt(eigens)
+
+    return eigens
+
+def gaussian(x, lam, sigma, N):
+    return numpy.exp(-(x - lam)**2/sigma**2)/(sigma*N*numpy.sqrt(2*numpy.pi))
+
+def rho(x, eigenvalues, sigma, N):
+    func = 0
+    for lam in eigenvalues:
+        func = func + gaussian(x, lam, sigma, N)
+    return func
+
+##############################################  
+
+if __name__ == "__main__":
+    main()
+
+
